@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# KTAI launcher — the `ktai` command.
+#
+# Sets the KTAI runtime identity (home + core source), then hands off to the KTAI
+# package on KTAI's own venv. Everything downstream (core imports, sessions, logs,
+# skills, memory) resolves under KTAI_HOME, never ~/.hermes.
+set -euo pipefail
+
+# Resolve this script's real location: invoked through a symlink (e.g.
+# ~/.local/bin/ktai) BASH_SOURCE points at the link, which would make ROOT the
+# symlink's parent instead of the distribution.
+_SRC="${BASH_SOURCE[0]}"
+while [ -L "$_SRC" ]; do
+  _DIR="$(cd -P "$(dirname "$_SRC")" && pwd)"
+  _SRC="$(readlink "$_SRC")"
+  [[ "$_SRC" != /* ]] && _SRC="$_DIR/$_SRC"
+done
+KTAI_ROOT="$(cd -P "$(dirname "$_SRC")/.." && pwd)"
+export KTAI_ROOT
+export KTAI_HOME="${KTAI_HOME:-$HOME/.ktai}"
+# The core implements the home mechanism as HERMES_HOME; KTAI_HOME is canonical and
+# the patched core honours it first (hermes_constants.get_hermes_home).
+export HERMES_HOME="$KTAI_HOME"
+unset PYTHONPATH PYTHONHOME
+
+exec "$KTAI_ROOT/venv/bin/python3" "$KTAI_ROOT/bin/ktai_entry.py" "$@"
