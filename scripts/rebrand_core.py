@@ -26,6 +26,10 @@ from pathlib import Path
 KTAI_ROOT = Path(__file__).resolve().parent.parent
 CORE = KTAI_ROOT / "core"
 PATCH_DIR = KTAI_ROOT / "patches"
+# Canonical copy of the branding module. It does not exist upstream (~/.hermes/hermes-agent
+# has no ktai_branding.py), so a rebuild from the pristine Hermes tree must materialise it —
+# otherwise every display import added by this manifest fails at the branding gate below.
+BRANDING_SRC = PATCH_DIR / "ktai_branding.py"
 
 # ── Identity text ─────────────────────────────────────────────────────────────
 # The behaviour spec after the identity clause is preserved verbatim on purpose:
@@ -300,6 +304,20 @@ def main() -> int:
     problems: list[str] = []
     applied: list[dict] = []
     touched: dict[Path, str] = {}
+
+    # 0. Materialise the branding module first: the manifest's edits import it.
+    if BRANDING_SRC.is_file():
+        branding_path = CORE / "ktai_branding.py"
+        want = BRANDING_SRC.read_text(encoding="utf-8")
+        have = branding_path.read_text(encoding="utf-8") if branding_path.is_file() else None
+        if have != want:
+            touched[branding_path] = want
+            applied.append({
+                "file": "ktai_branding.py",
+                "why": "branding module (created/refreshed from patches/ktai_branding.py)",
+            })
+    else:
+        problems.append(f"missing canonical branding module: {BRANDING_SRC}")
 
     # cli.py must be able to resolve _ktai_version_label before any string edit lands.
     cli_path = CORE / "cli.py"

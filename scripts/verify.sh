@@ -56,13 +56,24 @@ else echo "  · state.db not created yet (first run will create it)"; fi
 
 step "5. Tests on the identity-affected files"
 AFFECTED="tests/hermes_cli/test_banner.py tests/hermes_cli/test_skin_engine.py tests/hermes_cli/test_startup_fast_guards.py tests/hermes_cli/test_config.py tests/test_cli_skin_integration.py tests/agent/test_prompt_builder.py tests/agent/test_system_prompt.py tests/cli/test_exit_summary_resume_hint.py tests/hermes_state/test_resolve_resume_session_id.py"
-run_check "affected test files" env HERMES_PYTHON="$PY" bash -c \
-  "cd '$KTAI_ROOT/core' && scripts/run_tests.sh $AFFECTED"
+# A fresh install (setup_venv.py --mode fresh) has runtime deps only; the suite needs
+# the [dev] extra. Skip rather than fail — every other check still runs.
+if "$PY" -c 'import pytest' >/dev/null 2>&1; then
+  run_check "affected test files" env HERMES_PYTHON="$PY" bash -c \
+    "cd '$KTAI_ROOT/core' && scripts/run_tests.sh $AFFECTED"
+else
+  echo "  · skipped (pytest not installed) — install it with:"
+  echo "      python3 scripts/setup_venv.py --mode fresh --with-dev"
+fi
 
 if [[ "${1:-}" == "--full-agent-tests" ]]; then
   step "6. Prompt/agent subsystem (tests/agent, full)"
-  run_check "tests/agent/" env HERMES_PYTHON="$PY" bash -c \
-    "cd '$KTAI_ROOT/core' && scripts/run_tests.sh tests/agent/"
+  if "$PY" -c 'import pytest' >/dev/null 2>&1; then
+    run_check "tests/agent/" env HERMES_PYTHON="$PY" bash -c \
+      "cd '$KTAI_ROOT/core' && scripts/run_tests.sh tests/agent/"
+  else
+    echo "  · skipped (pytest not installed)"
+  fi
 fi
 
 if [[ "${1:-}" == "--with-chat" ]]; then

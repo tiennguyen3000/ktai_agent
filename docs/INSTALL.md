@@ -34,6 +34,10 @@ Tuỳ chọn:
 bash scripts/install.sh --from-hermes      # máy đã có ~/.hermes: copy core+venv, không tải gì
 bash scripts/install.sh --dir ~/KTAI       # đổi vị trí cài
 bash scripts/install.sh --core-ref core    # đổi nhánh core
+bash scripts/install.sh --mode git         # buộc lấy core từ nhánh `core` trên GitHub
+bash scripts/install.sh --venv-mode fresh  # buộc dựng venv mới (không copy venv Hermes)
+bash scripts/install.sh --extras messaging # extras của core (mặc định 'all', trống = core only)
+bash scripts/install.sh --with-dev         # thêm [dev] (pytest…) để verify.sh chạy được test suite
 bash scripts/install.sh --no-link          # không tạo symlink ~/.local/bin/ktai
 bash scripts/install.sh --skip-verify      # dừng trước bước verify
 ```
@@ -63,8 +67,11 @@ bash   scripts/verify.sh
 - `--mode clone` — copy venv Hermes (308 MB, đã có sẵn deps) rồi repoint mọi đường dẫn
   tuyệt đối sang core KTAI. Không tải gì, vài giây. Dùng khi máy có `~/.hermes/hermes-agent/venv`.
 - `--mode fresh` — tạo venv mới bằng CPython 3.11–3.13 rồi cài deps của core
-  (`uv sync --frozen` khi có `uv` + `core/uv.lock`, ngược lại `pip install -e core`).
-  Dùng cho máy mới; mất vài phút và cần mạng.
+  (`uv sync --frozen` khi có `uv` + `core/uv.lock`, ngược lại `pip install -e "core[all]"`).
+  Dùng cho máy mới; mất vài phút và cần mạng. Extras mặc định là `all` (giống installer của
+  Hermes); các backend cài lười (messaging/telegram, TTS, search provider…) do core tự cài ở
+  lần dùng đầu, nên không cần thêm vào đây. `--with-dev` thêm `[dev]` để `verify.sh` chạy được
+  test suite (`--with-dev` mà thiếu thì verify bỏ qua bước test chứ không fail).
 - `--mode auto` (mặc định) — có venv Hermes thì `clone`, không thì `fresh`.
 
 Cả hai chế độ kết thúc bằng cùng một bước finalize: ghi `ktai_core.pth` (để `import cli`,
@@ -110,6 +117,10 @@ chạy `bash scripts/clone_core.sh --mode git` rồi `python3 scripts/setup_venv
 
 **`no CPython 3.11–3.13 found`** — `python3` của macOS là 3.9; cài `python@3.12` hoặc
 `KTAI_PYTHON=/opt/homebrew/bin/python3.12 python3 scripts/setup_venv.py --mode fresh`.
+
+**`branding import: ModuleNotFoundError: No module named 'ktai_branding'`** — core thiếu module
+bản sắc (tree Hermes gốc không có file này). `python3 scripts/rebrand_core.py` sẽ tự tạo lại từ
+`patches/ktai_branding.py`; nếu file canonical đó mất thì lấy từ nhánh `core`.
 
 **Clone repo private thất bại** — dùng token trong URL
 (`https://<user>:<token>@github.com/tiennguyen3000/ktai_agent.git`) hoặc SSH remote.

@@ -120,7 +120,7 @@ def clone_mode() -> None:
     step(f"text files scanned: {scanned}, repointed: {rewritten}")
 
 
-def fresh_mode(allow_uv: bool = True) -> None:
+def fresh_mode(allow_uv: bool = True, extras: str = "all", with_dev: bool = False) -> None:
     py = find_python()
     if not py:
         raise SystemExit(
@@ -138,21 +138,38 @@ def fresh_mode(allow_uv: bool = True) -> None:
     run([py, "-m", "venv", str(DST_VENV)])
     vpy = DST_VENV / "bin" / "python3"
 
+    extra_names = [e.strip() for e in extras.split(",") if e.strip()]
+    if with_dev and "dev" not in extra_names:
+        extra_names.append("dev")
+    spec = f"{CORE}[{','.join(extra_names)}]" if extra_names else str(CORE)
+    step(f"extras: {', '.join(extra_names) or '(core only)'}")
+
     uv = shutil.which("uv") if allow_uv else None
     installed = False
     if uv and (CORE / "uv.lock").is_file():
         step("installing core dependencies with uv (uv.lock, frozen)")
+        uv_cmd = [uv, "sync", "--frozen"]
+        if not with_dev:
+            uv_cmd.append("--no-dev")
+        for name in extra_names:
+            uv_cmd += ["--extra", name]
         try:
-            run([uv, "sync", "--frozen", "--no-dev"], cwd=str(CORE),
+            run(uv_cmd, cwd=str(CORE),
                 env={**os.environ, "UV_PROJECT_ENVIRONMENT": str(DST_VENV)})
             installed = True
         except subprocess.CalledProcessError:
             step("uv sync failed — falling back to pip")
 
     if not installed:
-        step("installing core dependencies with pip (editable install of core/)")
+        step(f"installing core dependencies with pip (editable: {spec})")
         run([str(vpy), "-m", "pip", "install", "--upgrade", "pip", "wheel", "setuptools==83.0.0"])
-        run([str(vpy), "-m", "pip", "install", "-e", str(CORE)])
+        try:
+            run([str(vpy), "-m", "pip", "install", "-e", spec])
+        except subprocess.CalledProcessError:
+            if not extra_names:
+                raise
+            step("install with extras failed — retrying with the core only")
+            run([str(vpy), "-m", "pip", "install", "-e", str(CORE)])
 
     step("dependency install done")
 
@@ -203,6 +220,13 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=("auto", "clone", "fresh"), default="auto")
     ap.add_argument("--no-uv", action="store_true", help="fresh mode: never use uv, always pip")
+    ap.add_argument("--extras", default="all",
+                    help="fresh mode: core extras to install, comma-separated "
+                         "(default 'all' — the extras upstream ships in its own installer; "
+                         "pass '' for the core only)")
+    ap.add_argument("--with-dev", action="store_true",
+                    help="fresh mode: also install the [dev] extra (pytest, ruff, ...) so "
+                         "scripts/verify.sh can run the test suite")
     args = ap.parse_args()
 
     if not (CORE / "hermes_cli").is_dir():
@@ -217,7 +241,7 @@ def main() -> int:
     if mode == "clone":
         clone_mode()
     else:
-        fresh_mode(allow_uv=not args.no_uv)
+        fresh_mode(allow_uv=not args.no_uv, extras=args.extras, with_dev=args.with_dev)
 
     return finalize()
 
