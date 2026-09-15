@@ -38,6 +38,9 @@ Cơ cấu: **22 sửa đổi sản phẩm** + **6 sửa đổi test-alignment** 
 **Branding & hiển thị (3 file)**
 - `core/ktai_branding.py` **(file mới)** — nguồn sự thật duy nhất cho identity: tên, chủ sở
   hữu, version, logo wordmark, hero art, branding dict, spinner, `version_label()`.
+  Bản canonical nằm ở `patches/ktai_branding.py`: upstream **không có** file này, nên khi
+  dựng lại từ tree Hermes gốc, `rebrand_core.py` tự tạo/refresh `core/ktai_branding.py`
+  từ đó *trước khi* áp manifest (nếu thiếu bước này, gate `branding import` fail ngay).
 - `hermes_cli/banner.py` — import branding; **hero art** + **wordmark** + **nhãn version**
   đều lấy từ `ktai_branding` (hero: motif "chip"; logo: wordmark ANSI-shadow "KTAI").
 - `hermes_cli/skin_engine.py` — branding fallback của skin mặc định → KTAI.
@@ -106,7 +109,8 @@ nửa vời. Khi đó: đọc `patches/rebrand.patch`, cập nhật anchor trong
 
 ## 6. Thêm một thiết kế bản sắc mới
 
-1. Chuỗi/identity mới → thêm vào `ktai_branding.py` (không rải hằng số khắp core).
+1. Chuỗi/identity mới → thêm vào `ktai_branding.py` (không rải hằng số khắp core), rồi copy
+   sang `patches/ktai_branding.py` (bản canonical mà `rebrand_core.py` phát lại vào core).
 2. Cần sửa core → thêm mục vào `REPLACEMENTS` trong `scripts/rebrand_core.py`.
 3. Test upstream assert chuỗi đó → thêm mục vào `TEST_ALIGNMENT` (chỉ chuỗi identity).
 4. Chạy `scripts/rebrand_core.py` → `bash scripts/verify.sh`.

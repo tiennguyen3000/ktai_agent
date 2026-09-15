@@ -95,6 +95,32 @@ def seed_default_config() -> None:
         print(f"    FAILED to write default config: {(exc.stderr or '').strip()[-300:]}")
 
 
+def ensure_skin() -> None:
+    """Force display.skin=ktai.
+
+    A home seeded from Hermes inherits `display.skin: default`, which makes
+    `ktai selfcheck`'s skin check fail and drops the KTAI skin. Use the core's own
+    config command so the write goes through the normal validated path.
+    """
+    cfg_path = DST_HOME / "config.yaml"
+    if not cfg_path.is_file():
+        return
+    launcher = ROOT / "venv" / "bin" / "ktai"
+    if not launcher.is_file():
+        print("    skip skin: venv/bin/ktai not built yet — run scripts/setup_venv.py, then re-run seeding")
+        return
+    env = {**os.environ, "KTAI_HOME": str(DST_HOME), "HERMES_HOME": str(DST_HOME)}
+    env.pop("PYTHONPATH", None)
+    try:
+        out = subprocess.run(
+            [str(launcher), "config", "set", "display.skin", "ktai"],
+            env=env, capture_output=True, text=True, check=True,
+        )
+        print(f"    {(out.stdout or '').strip().splitlines()[-1] if out.stdout.strip() else 'display.skin = ktai'}")
+    except subprocess.CalledProcessError as exc:
+        print(f"    WARN could not set display.skin: {((exc.stderr or exc.stdout) or '').strip()[-200:]}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true", help="overwrite inherited config/skills in the home")
@@ -141,6 +167,7 @@ def main() -> int:
 
     step("config.yaml")
     seed_default_config()
+    ensure_skin()
 
     # A KTAI home must never be a Hermes home.
     assert DST_HOME.resolve() != SRC_HOME.resolve(), "refusing to seed onto the Hermes home"
