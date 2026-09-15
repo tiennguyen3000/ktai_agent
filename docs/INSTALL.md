@@ -177,3 +177,34 @@ Không set `KTAI_HOME` = ghi thẳng vào home thật (mất config/skin nếu l
 **Kiểm chứng** — `bash scripts/verify.sh` chạy 5 nhóm check thật (CLI, selfcheck, rebrand
 idempotent, isolation home, test files bị ảnh hưởng); `--with-chat` thêm 1 model call để
 xác nhận agent tự nhận là KTAI. Không có check nào đọc từ tài liệu.
+
+## Sinh distribution khác (bản cho owner/agent khác)
+
+KTAI không phải bản viết tay cho một người: nó là **layer** (CLI + identity + scripts +
+rebrand manifest) trên một core Hermes nguyên bản. `scripts/new_distribution.py` sao chép
+layer đó, đổi token bản sắc và đổi tên đường dẫn để sinh bản anh em (lệnh riêng, home riêng).
+
+```bash
+python3 scripts/new_distribution.py \
+    --name Linh --owner "Linh Nguyen" --slug linh \
+    --dir ~/Linh --home ~/.linh \
+    --repo https://github.com/tiennguyen3000/linh_agent.git --dry-run
+```
+
+Các bước sau đó chạy riêng để kiểm chứng từng bước (script in ra đúng thứ tự này):
+
+```bash
+cd ~/Linh
+bash scripts/clone_core.sh --mode local     # core Hermes nguyên bản -> core/
+python3 scripts/rebrand_core.py             # áp lớp bản sắc mới
+python3 scripts/setup_venv.py --mode auto   # venv riêng
+python3 scripts/seed_home.py                # tạo ~/.linh
+ln -sfn ~/Linh/bin/linh ~/.local/bin/linh
+bash scripts/verify.sh
+```
+
+Lưu ý khi dựng bản mới: lấy core từ **tree Hermes nguyên bản** (`~/.hermes/hermes-agent`),
+không copy `core/` của KTAI — core của KTAI đã áp bản sắc KTAI nên anchor "old" trong manifest
+đã biến mất, rebrand sẽ fail loudly. Hai chỗ phải sửa tay sau khi sinh (vì là art/ngữ nghĩa,
+không phải token): wordmark ASCII (art vẽ chữ, không phải text), và câu giải thích expansion
+(`KTAI = Khánh Tiển AI` trong README/docs) nếu bản mới không có expansion.
