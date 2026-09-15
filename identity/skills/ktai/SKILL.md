@@ -64,6 +64,11 @@ Chi tiết cần nhớ khi push:
 - `ktai agents [role]` — list charters, or print one.
 - `ktai team <role> "<task>"` — delegate a task to code|debug|review|test|research|devops.
 - `ktai selfcheck` — end-to-end install verification.
+- `bash scripts/sync_home.sh [--apply] [--overwrite] [--only skills|memories|plugins] [--show-extra]`
+  — kéo skill/memory/plugin **mới** từ `~/.hermes` sang `~/.ktai` (seed chỉ copy 1 lần lúc cài;
+  sau đó 2 home tách rời). Mặc định dry-run, không đè, không xoá, không đụng `skills/ktai`.
+  Phân loại NEW/DIFF bằng 1 pass dry-run rồi mới copy — cần vì rsync của macOS là openrsync
+  (không có `+` trong itemize code, và nếu copy trước khi phân loại thì file mới thành DIFF).
 - Everything else (`gateway`, `cron`, `config`, `tools`, `doctor`, …) passes
   straight through to the core CLI; capability is not reduced.
 
