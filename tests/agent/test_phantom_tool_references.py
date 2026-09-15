@@ -17,7 +17,7 @@ from pathlib import Path
 class TestHermesAgentHelpGuidance:
     def test_skill_variant_used_when_skill_view_present(self):
         from agent.prompt_builder import HERMES_AGENT_HELP_GUIDANCE
-        assert "skill_view(name='hermes-agent')" in HERMES_AGENT_HELP_GUIDANCE
+        assert "skill_view(name='ktai')" in HERMES_AGENT_HELP_GUIDANCE
 
     def test_no_skills_variant_has_no_skill_view_reference(self):
         from agent.prompt_builder import HERMES_AGENT_HELP_GUIDANCE_NO_SKILLS

@@ -853,7 +853,7 @@ def build_welcome_banner(
     text = _skin_color("banner_text", "#FFF8DC")
     # Use skin's custom caduceus art if provided
     _bskin = _quiet(_active_skin)
-    left_lines = ["", getattr(_bskin, "banner_hero", None) or HERMES_CADUCEUS, ""]
+    left_lines = ["", getattr(_bskin, "banner_hero", None) or KTAI_HERO, ""]
     left_lines += _banner_left_lines(model, cwd, session_id, context_length, provider, accent=accent, dim=dim)
     right_lines = _banner_tool_lines(
         tools, availability.get("unavailable_toolsets", []), get_toolset_for_tool,
@@ -914,6 +914,6 @@ def build_welcome_banner(
         border_style=_skin_color("banner_border", "#CD7F32"), padding=(0, 2))
     console.print()
     if shutil.get_terminal_size().columns >= 95:
-        console.print(getattr(_bskin, "banner_logo", None) or HERMES_AGENT_LOGO)
+        console.print(getattr(_bskin, "banner_logo", None) or KTAI_LOGO)
         console.print()
     console.print(outer_panel)

@@ -267,7 +267,7 @@ def _home_relative(p: Path) -> Path:
 
 # Never disableable: `hermes-agent` is the agent's own operating manual and the
 # system prompt points at it unconditionally.
-ESSENTIAL_SKILLS: frozenset = frozenset({"hermes-agent"})
+ESSENTIAL_SKILLS: frozenset = frozenset({"hermes-agent", "ktai"})  # "ktai": pinned by the KTAI layer
 
 
 def get_disabled_skill_names(platform: str | None = None) -> Set[str]:

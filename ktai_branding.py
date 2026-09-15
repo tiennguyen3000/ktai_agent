@@ -23,8 +23,13 @@ KTAI_LOGO = """[bold #38BDF8]██╗  ██╗████████╗ █
 [#2563EB]██║  ██╗   ██║   ██║  ██║██║[/]
 [#2563EB]╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝[/]"""
 
-# No hero art: KTAI renders the wordmark only (keeps the banner tight).
-KTAI_HERO = ""
+# Hero art: a "chip" motif — reads as engineering, pure box/block glyphs (safe in
+# any terminal, unlike braille art). Rendered in the banner's left column.
+KTAI_HERO = """[#22D3EE]      ╔═══════════════╗[/]
+[#22D3EE]      ║  ▓▓▓▓▓▓▓▓▓▓▓  ║[/]
+[#38BDF8]      ║   ▓ KTAI ▓    ║[/]
+[#38BDF8]      ║   ▓▓▓▓▓▓▓▓▓   ║[/]
+[#2563EB]      ╚═══════════════╝[/]"""
 
 # Display branding consumed by hermes_cli/skin_engine.py and the CLI.
 # Keys match the core's branding contract.
