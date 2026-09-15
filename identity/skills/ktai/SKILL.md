@@ -38,6 +38,22 @@ distribution: own command, own home, own identity, own team of engineering agent
 └── state.db logs/ sessions/
 ```
 
+## Repo GitHub
+
+`~/KTAI` là git repo, remote `origin` = `https://github.com/tiennguyen3000/ktai_agent` (**private**, nhánh `main`).
+Chi tiết cần nhớ khi push:
+
+- Repo giờ có **2 nhánh**: `main` = lớp KTAI (29 file: `identity/`, `ktai/`, `bin/`, `scripts/`,
+  `patches/`, `docs/`), `core` = runtime Hermes core đã áp bản sắc (push từ `git -C core push
+  <repo> main:core`, root commit riêng, 69MB pack). `.gitignore` loại trừ `core/` và `venv/` —
+  `core/` có git repo riêng (remote `upstream` = NousResearch/hermes-agent).
+- **Cài trên máy mới**: `git clone <repo> ~/KTAI && bash ~/KTAI/scripts/install.sh`
+  (6 bước, tự lấy nhánh `core`). `--from-hermes` để copy core+venv từ `~/.hermes` (nhanh, không tải).
+  Chi tiết: `docs/INSTALL.md`. Trước đây clone `main` không chạy được vì
+  `bin/ktai_entry.py` báo `ModuleNotFoundError: hermes_cli` cho tới khi có core.
+- Auth: token trong macOS keychain (user `tiennguyen3000`, quyền admin/push) — `git push`
+  chạy trực tiếp, không cần `gh auth login`.
+
 ## Commands
 
 - `ktai` — interactive session; `ktai chat -q "<question>"` for one-shot.
@@ -47,6 +63,23 @@ distribution: own command, own home, own identity, own team of engineering agent
 - `ktai selfcheck` — end-to-end install verification.
 - Everything else (`gateway`, `cron`, `config`, `tools`, `doctor`, …) passes
   straight through to the core CLI; capability is not reduced.
+
+## Pitfalls (đã trả giá)
+
+- **`KTAI_HOME` trong terminal của KTAI thắng `HERMES_HOME`.** Runtime KTAI export `KTAI_HOME`,
+  và patch trong `hermes_constants.get_hermes_home()` cho `KTAI_HOME` ưu tiên cao hơn
+  `HERMES_HOME`. Hệ quả: mọi lệnh chạy qua terminal tool thừa hưởng `KTAI_HOME=$HOME/.ktai`;
+  `HERMES_HOME=/tmp/x python3 -c "...save_config()"` vẫn ghi vào home THẬT. Muốn cô lập để thử
+  nghiệm thì set cả hai (`KTAI_HOME=/tmp/probe HERMES_HOME=/tmp/probe`), hoặc `unset KTAI_HOME`.
+- **Không bao giờ chạy code ghi config của core trên home thật để "probe".** Đã từng ghi đè
+  `~/.ktai/config.yaml` bằng `save_config(DEFAULT_CONFIG)` → mất `model`, telegram prompts,
+  plugins, `display.skin` (skin check fail). Khôi phục: `cp ~/.hermes/config.yaml ~/.ktai/config.yaml`
+  rồi `ktai config set display.skin ktai` (vì bản KTAI khác bản Hermes đúng ở key này).
+- **Tool `patch` từ chối sửa file config** (`Refusing to write to Hermes config file`) — sửa
+  config bằng `ktai config set <key> <value>`, không sửa tay.
+- Bootstrap python của `rebuild.sh`/`install.sh` đã bỏ hard-code `~/.hermes/.../venv/bin/python3`:
+  giờ tự dò `python3.12|3.11|3.13|python3` (>=3.8). Venv mới cần CPython 3.11–3.13
+  (core `requires-python = ">=3.11,<3.14"`; macOS mặc định 3.9.6, Homebrew có 3.12/3.14).
 
 ## Rules that matter here
 
