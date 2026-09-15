@@ -45,7 +45,7 @@ Mọi subcommand của core dùng được y nguyên qua `ktai` (`ktai cron`, `k
 ├── ktai/         # package CLI: identity · agents · team · selfcheck · passthrough
 ├── identity/     # nguồn bản sắc: SOUL.md · AGENTS.md · agents/*.md · skins/ · skills/ktai
 ├── bin/ktai      # launcher (resolve symlink, set KTAI_HOME, exec venv)
-├── scripts/      # clone · rebrand · setup_venv · seed_home · verify · rebuild
+├── scripts/      # install · clone_core · rebrand · setup_venv · seed_home · sync_home · verify · rebuild
 ├── patches/      # rebrand.patch + manifest (bản sắc KTAI vs upstream)
 ├── venv/         # runtime riêng của KTAI
 └── docs/         # ARCHITECTURE · KTAI-IDENTITY · REBRAND · AGENT-ROLES

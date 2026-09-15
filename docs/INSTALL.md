@@ -89,6 +89,40 @@ ktai setup            # flow cấu hình provider/model của core
 ktai chat -q "bạn là ai?"
 ```
 
+## Đồng bộ skill/memory về sau (Hermes → KTAI)
+
+Seed copy `skills/`, `memories/`, `plugins/` từ `~/.hermes` **một lần** lúc cài; sau đó hai home
+tách rời (đúng thiết kế isolation). Muốn kéo việc làm sau đó bên Hermes sang KTAI thì dùng:
+
+```bash
+bash scripts/sync_home.sh                      # dry run (mặc định, không ghi gì)
+bash scripts/sync_home.sh --apply              # chỉ copy file KTAI chưa có
+bash scripts/sync_home.sh --apply --overwrite  # copy cả file khác nội dung
+bash scripts/sync_home.sh --only skills        # giới hạn một vùng: skills|memories|plugins
+bash scripts/sync_home.sh --show-extra         # liệt kê thêm file chỉ có bên KTAI
+```
+
+Quy tắc an toàn của script: mặc định **dry-run**; **không bao giờ ghi đè** (muốn đè phải
+`--overwrite`); **không xoá gì**; **không đụng `skills/ktai`** (skill được pin
+`ESSENTIAL_SKILLS`); bỏ qua file state riêng của từng home (`.curator_ledger.jsonl`,
+`.usage.json`, `.bundled_manifest`, `.curator_backups/`). Script từ chối chạy nếu src = dst.
+
+Chạy thật trên máy này (`--show-extra`, không ghi gì):
+
+```
+== skills
+  DIFF  github/github-publish/SKILL.md   (kept — pass --overwrite to update)
+== memories
+  DIFF  MEMORY.md   (kept — pass --overwrite to update)
+== plugins
+  (up to date)
+
+Tổng: 0 file mới, 2 file khác nội dung, 0 file chỉ có bên KTAI
+```
+
+Đúng như thiết kế: 2 chỗ khác đó **không nên** bị đè (bản `github-publish` bên KTAI mới hơn,
+9095 B so với 5767 B; `MEMORY.md` là memory riêng của từng agent) — nên mặc định chỉ báo, không ghi.
+
 ## Cập nhật
 
 ```bash
