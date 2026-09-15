@@ -47,10 +47,13 @@ Chi tiết cần nhớ khi push:
   `patches/`, `docs/`), `core` = runtime Hermes core đã áp bản sắc (push từ `git -C core push
   <repo> main:core`, root commit riêng, 69MB pack). `.gitignore` loại trừ `core/` và `venv/` —
   `core/` có git repo riêng (remote `upstream` = NousResearch/hermes-agent).
-- **Cài trên máy mới**: `git clone <repo> ~/KTAI && bash ~/KTAI/scripts/install.sh`
-  (6 bước, tự lấy nhánh `core`). `--from-hermes` để copy core+venv từ `~/.hermes` (nhanh, không tải).
-  Chi tiết: `docs/INSTALL.md`. Trước đây clone `main` không chạy được vì
-  `bin/ktai_entry.py` báo `ModuleNotFoundError: hermes_cli` cho tới khi có core.
+- **Cài trên máy mới**: `git clone --single-branch --branch main <repo> ~/KTAI && bash ~/KTAI/scripts/install.sh`
+  (6 bước, tự lấy nhánh `core`). Cờ hay dùng: `--from-hermes` (copy core+venv từ `~/.hermes`),
+  `--mode git|local|auto` (nguồn core), `--venv-mode auto|clone|fresh` (nguồn venv),
+  `--extras`/`--with-dev`, `--no-link`, `--skip-verify`. Chi tiết: `docs/INSTALL.md`.
+- **Test lại đường cài mà không phá máy thật**: clone repo vào `/tmp/ktai-fresh`, chạy
+  `KTAI_HOME=/tmp/ktai-home-test bash /tmp/ktai-fresh/scripts/install.sh --dir /tmp/ktai-fresh --mode git --venv-mode fresh --no-link`
+  (nhớ `KTAI_HOME` + `--no-link` để không ghi vào `~/.ktai` và không đổi symlink `~/.local/bin/ktai`).
 - Auth: token trong macOS keychain (user `tiennguyen3000`, quyền admin/push) — `git push`
   chạy trực tiếp, không cần `gh auth login`.
 
@@ -65,6 +68,13 @@ Chi tiết cần nhớ khi push:
   straight through to the core CLI; capability is not reduced.
 
 ## Pitfalls (đã trả giá)
+
+- **`ktai_branding.py` không có trong tree Hermes gốc** → rebuild từ `~/.hermes` (hoặc clone
+  nhánh `core` cũ) chết ở gate `branding import`. Bản canonical nằm ở `patches/ktai_branding.py`,
+  `rebrand_core.py` tự tạo/refresh vào core. Thêm identity mới thì copy ngược lại vào `patches/`.
+- **Seed kế thừa `config.yaml` từ `~/.hermes` → `display.skin: default`**, mất skin KTAI và
+  `ktai selfcheck` fail. `seed_home.py` giờ luôn chạy `ktai config set display.skin ktai` sau khi
+  seed (idempotent).
 
 - **`KTAI_HOME` trong terminal của KTAI thắng `HERMES_HOME`.** Runtime KTAI export `KTAI_HOME`,
   và patch trong `hermes_constants.get_hermes_home()` cho `KTAI_HOME` ưu tiên cao hơn
