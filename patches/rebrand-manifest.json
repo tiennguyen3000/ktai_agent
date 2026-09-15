@@ -115,16 +115,7 @@
       "why": "test alignment: guidance points at the KTAI skill"
     }
   ],
-  "applied_this_run": [
-    {
-      "file": "hermes_cli/banner.py",
-      "why": "banner hero art"
-    },
-    {
-      "file": "hermes_cli/banner.py",
-      "why": "banner wordmark logo"
-    }
-  ],
+  "applied_this_run": [],
   "files_in_patch": [
     "agent/prompt_builder.py",
     "agent/skill_utils.py",
