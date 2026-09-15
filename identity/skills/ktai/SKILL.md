@@ -57,6 +57,19 @@ Chi tiết cần nhớ khi push:
 - Auth: token trong macOS keychain (user `tiennguyen3000`, quyền admin/push) — `git push`
   chạy trực tiếp, không cần `gh auth login`.
 
+## Bản anh em (cùng thiết kế, khác chủ sở hữu)
+
+KTAI là **template**: `scripts/new_distribution.py` sinh bản khác từ chính layer này
+(sao chép CLI + identity + scripts + manifest, đổi token KTAI→tên mới, đổi tên path).
+
+- Đã sinh: **Linh** — owner `Linh Nguyen`, lệnh `linh`, `~/Linh`, home `~/.linh`, env `LINH_HOME`,
+  repo `tiennguyen3000/linh_agent` (nhánh `main` + `core`). Lệnh: `python3 scripts/new_distribution.py
+  --name Linh --owner "Linh Nguyen" --slug linh --dir ~/Linh --home ~/.linh --repo <url>`.
+- Bản mới lấy core từ **tree Hermes nguyên bản** (`~/.hermes/hermes-agent`), KHÔNG copy
+  `core/` của KTAI: core KTAI đã áp bản sắc nên anchor `old` của manifest đã mất → rebrand fail.
+- Sau khi sinh phải sửa tay 2 chỗ (không phải token): art wordmark ASCII (vẽ chữ, không phải text)
+  và câu giải thích expansion trong README/docs nếu bản mới không có expansion.
+
 ## Commands
 
 - `ktai` — interactive session; `ktai chat -q "<question>"` for one-shot.
