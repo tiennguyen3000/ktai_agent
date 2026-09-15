@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """KTAI home seeder — builds ~/.ktai so KTAI starts capable, not empty.
 
-Copies the capability surface (config, credentials, skills, memories, plugins)
-from the Hermes home, then installs the KTAI identity layer on top:
-SOUL.md / AGENTS.md / agents/ / skins/ / skills/ktai.
+Two situations:
+
+  * A Hermes home exists (~/.hermes) — the capability surface (config, credentials,
+    skills, memories, plugins) is inherited, then the KTAI identity layer is
+    installed on top.
+  * No Hermes home (fresh machine) — nothing to inherit; the identity layer and
+    empty runtime dirs are still installed, plus a default config.yaml written by
+    the core itself (so `ktai` boots instead of failing on a missing config).
+    Credentials still have to be added: `ktai setup`, or edit ~/.ktai/.env.
 
 Deliberately NOT copied: state.db, session transcripts, kanban board, history and
 caches — KTAI starts with its own clean session history. The source home is only
@@ -16,14 +22,17 @@ config/credentials/skills are only copied when absent unless --force.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 IDENTITY = ROOT / "identity"
 SRC_HOME = Path.home() / ".hermes"
-DST_HOME = Path.home() / ".ktai"
+DST_HOME = Path(os.environ.get("KTAI_HOME") or (Path.home() / ".ktai"))
+VENV_PY = ROOT / "venv" / "bin" / "python3"
 
 # Files the user chose to inherit: without these KTAI cannot run at all.
 INHERIT_FILES = ("config.yaml", ".env", "auth.json", "google_token.json", "google_client_secret.json")
@@ -35,6 +44,18 @@ FRESH_DIRS = ("logs", "sessions", "cron", "cache", "pastes", "plans", "sandboxes
 IDENTITY_FILES = (
     ("SOUL.md", IDENTITY / "SOUL.md"),
     ("AGENTS.md", IDENTITY / "AGENTS.md"),
+)
+
+# Runs on the KTAI venv python: the core owns the config schema, so let the core
+# write its own defaults instead of hand-rolling YAML that could drift.
+DEFAULT_CONFIG_SNIPPET = (
+    "import copy;"
+    "from hermes_cli.config import DEFAULT_CONFIG, get_config_path, save_config;"
+    "cfg = copy.deepcopy(DEFAULT_CONFIG);"
+    "cfg.setdefault('display', {});"
+    "cfg['display']['skin'] = 'ktai';"
+    "save_config(cfg);"
+    "print(get_config_path())"
 )
 
 
@@ -52,14 +73,36 @@ def copy_file(src: Path, dst: Path, force: bool) -> str:
     return f"copied: {dst}"
 
 
+def seed_default_config() -> None:
+    """Write a core-owned default config.yaml when there is nothing to inherit."""
+    cfg_path = DST_HOME / "config.yaml"
+    if cfg_path.exists():
+        print(f"    keep existing: {cfg_path}")
+        return
+    if not VENV_PY.is_file():
+        print("    skip: venv not built yet — run scripts/setup_venv.py, then re-run seeding")
+        return
+    env = {**os.environ, "KTAI_HOME": str(DST_HOME), "HERMES_HOME": str(DST_HOME)}
+    env.pop("PYTHONPATH", None)
+    try:
+        out = subprocess.run(
+            [str(VENV_PY), "-c", DEFAULT_CONFIG_SNIPPET],
+            cwd=str(ROOT / "core"), env=env, capture_output=True, text=True, check=True,
+        )
+        print(f"    wrote default config: {out.stdout.strip()}")
+        print("    add credentials next:  ktai setup   (or edit ~/.ktai/.env)")
+    except subprocess.CalledProcessError as exc:
+        print(f"    FAILED to write default config: {(exc.stderr or '').strip()[-300:]}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true", help="overwrite inherited config/skills in the home")
     args = ap.parse_args()
 
-    if not SRC_HOME.is_dir():
-        print(f"source home not found: {SRC_HOME}")
-        return 1
+    inherit = SRC_HOME.is_dir()
+    if not inherit:
+        print(f"== no Hermes home at {SRC_HOME} — fresh install, nothing to inherit")
 
     step(f"seeding KTAI home: {DST_HOME}")
     DST_HOME.mkdir(parents=True, exist_ok=True)
@@ -69,19 +112,20 @@ def main() -> int:
         (DST_HOME / name).mkdir(parents=True, exist_ok=True)
     step(f"fresh dirs: {', '.join(FRESH_DIRS)}")
 
-    for name in INHERIT_FILES:
-        print("   ", copy_file(SRC_HOME / name, DST_HOME / name, args.force))
+    if inherit:
+        for name in INHERIT_FILES:
+            print("   ", copy_file(SRC_HOME / name, DST_HOME / name, args.force))
 
-    for name in INHERIT_DIRS:
-        src, dst = SRC_HOME / name, DST_HOME / name
-        if not src.is_dir():
-            print(f"    skip (source missing): {src}")
-            continue
-        if dst.exists() and not args.force:
-            print(f"    keep existing: {dst}")
-            continue
-        shutil.copytree(src, dst, dirs_exist_ok=True)
-        print(f"    copied tree: {dst}")
+        for name in INHERIT_DIRS:
+            src, dst = SRC_HOME / name, DST_HOME / name
+            if not src.is_dir():
+                print(f"    skip (source missing): {src}")
+                continue
+            if dst.exists() and not args.force:
+                print(f"    keep existing: {dst}")
+                continue
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+            print(f"    copied tree: {dst}")
 
     step("installing KTAI identity layer")
     for rel, src in IDENTITY_FILES:
@@ -94,6 +138,9 @@ def main() -> int:
     if skill_src.is_dir():
         shutil.copytree(skill_src, DST_HOME / "skills" / "ktai", dirs_exist_ok=True)
         print(f"    installed: {DST_HOME / 'skills/ktai'}")
+
+    step("config.yaml")
+    seed_default_config()
 
     # A KTAI home must never be a Hermes home.
     assert DST_HOME.resolve() != SRC_HOME.resolve(), "refusing to seed onto the Hermes home"

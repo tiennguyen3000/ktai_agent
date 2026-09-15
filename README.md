@@ -7,6 +7,21 @@ bản sắc riêng (persona, banner, branding), và một đội 6 engineering a
 Nó chạy trên **Hermes core architecture** (Nous Research) nên kế thừa toàn bộ năng lực:
 vòng lặp agent tự trị, 253 tool, delegation đa agent, cron, gateway 30 nền tảng, desktop/TUI.
 
+## Cài đặt
+
+```bash
+git clone https://github.com/tiennguyen3000/ktai_agent.git ~/KTAI
+bash ~/KTAI/scripts/install.sh
+```
+
+Repo có **2 nhánh**: `main` = lớp KTAI (CLI, bản sắc, scripts), `core` = runtime Hermes core
+đã áp bản sắc KTAI. Clone `main` một mình **không chạy được** — installer tự lấy nhánh `core`,
+dựng venv riêng, seed `~/.ktai` và link lệnh `ktai`.
+
+- Máy đã có Hermes (`~/.hermes`): `bash scripts/install.sh --from-hermes` — copy core+venv, không tải gì.
+- Yêu cầu: `git`, Python 3.11–3.13, ~1,5 GB trống, quyền đọc repo private.
+- Chi tiết đầy đủ (thủ công, tuỳ chọn, update, uninstall, troubleshooting): **`docs/INSTALL.md`**.
+
 ## Bắt đầu
 
 ```bash
@@ -43,6 +58,7 @@ Mọi subcommand của core dùng được y nguyên qua `ktai` (`ktai cron`, `k
 
 | Đọc | Nội dung |
 |---|---|
+| `docs/INSTALL.md` | **Cài đặt**: 2 nhánh repo, installer 6 bước, 2 chế độ venv, credentials, update, uninstall, troubleshooting |
 | `docs/ARCHITECTURE.md` | Bản đồ kiến trúc đo từ code: entry point, agent loop, tool, đa agent, memory, runtime, build/test |
 | `docs/KTAI-IDENTITY.md` | Định nghĩa bản sắc KTAI + chuẩn hành vi đã cài |
 | `docs/AGENT-ROLES.md` | 6 engineering agent, cách gọi, hợp đồng đầu ra |
