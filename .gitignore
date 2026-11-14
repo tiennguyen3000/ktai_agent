@@ -7,3 +7,7 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+
+# Scratch files from iterating on skins (timestamped editor backups, empty stubs)
+identity/skins/*.bak-*
+identity/skins/cpy.yml
