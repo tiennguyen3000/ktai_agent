@@ -70,7 +70,9 @@ unset PYTHONPATH PYTHONHOME || true
 step "0/6 prerequisites"
 command -v git >/dev/null || die "git is required"
 BOOT_PY=""
-for cand in python3.12 python3.11 python3.13 python3; do
+for cand in python3.12 python3.11 python3.13 python3 python \
+            "$HOME/Python313/python.exe" "$HOME/Python312/python.exe" \
+            "${LOCALAPPDATA:-$HOME/AppData/Local}/Programs/Python/Python313/python.exe"; do
   if command -v "$cand" >/dev/null 2>&1; then
     if "$cand" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 8) else 1)' 2>/dev/null; then
       BOOT_PY="$(command -v "$cand")"; break
@@ -114,13 +116,47 @@ else
 fi
 
 if [[ $LINK -eq 1 ]]; then
-  mkdir -p "$BIN_DIR"
-  ln -sfn "$KTAI_DIR/bin/ktai" "$BIN_DIR/ktai"
-  echo "  linked: $BIN_DIR/ktai -> $KTAI_DIR/bin/ktai"
-  case ":$PATH:" in
-    *":$BIN_DIR:"*) ;;
-    *) echo "  NOTE: $BIN_DIR is not on PATH. Add to your shell rc:"
-       echo "        export PATH=\"$BIN_DIR:\$PATH\"" ;;
+  case "$(uname -s 2>/dev/null || true)" in
+    MINGW*|MSYS*|CYGWIN*)
+      # Windows: no symlinks to a sh script. Drop a .cmd (PowerShell/cmd) and a sh
+      # shim (git-bash) into $HOME/bin, which the Windows PATH already carries.
+      WIN_BIN="${KTAI_BIN_DIR:-$HOME/bin}"
+      mkdir -p "$WIN_BIN"
+      KTAI_WIN="$(cygpath -w "$KTAI_DIR" 2>/dev/null || echo "$KTAI_DIR")"
+      KTAI_POSIX="$(cygpath -m "$KTAI_DIR" 2>/dev/null || echo "$KTAI_DIR")"
+      {
+        echo '@echo off'
+        echo 'setlocal'
+        echo 'if "%KTAI_HOME%"=="" set "KTAI_HOME=%USERPROFILE%\.ktai"'
+        echo "set \"KTAI_ROOT=$KTAI_WIN\""
+        echo 'set "HERMES_HOME=%KTAI_HOME%"'
+        echo 'set "PYTHONPATH="'
+        echo 'set "PYTHONHOME="'
+        echo '"%KTAI_ROOT%\venv\Scripts\python.exe" "%KTAI_ROOT%\bin\ktai_entry.py" %*'
+        echo 'exit /b %ERRORLEVEL%'
+      } | sed 's/$/\r/' > "$WIN_BIN/ktai.cmd"
+      {
+        echo '#!/usr/bin/env bash'
+        echo "KTAI_ROOT=\"$KTAI_POSIX\""
+        echo 'export KTAI_ROOT'
+        echo 'export KTAI_HOME="${KTAI_HOME:-$HOME/.ktai}"'
+        echo 'export HERMES_HOME="$KTAI_HOME"'
+        echo 'unset PYTHONPATH PYTHONHOME'
+        echo 'exec "$KTAI_ROOT/venv/Scripts/python.exe" "$KTAI_ROOT/bin/ktai_entry.py" "$@"'
+      } > "$WIN_BIN/ktai"
+      chmod +x "$WIN_BIN/ktai"
+      echo "  linked: $WIN_BIN/ktai.cmd + $WIN_BIN/ktai"
+      ;;
+    *)
+      mkdir -p "$BIN_DIR"
+      ln -sfn "$KTAI_DIR/bin/ktai" "$BIN_DIR/ktai"
+      echo "  linked: $BIN_DIR/ktai -> $KTAI_DIR/bin/ktai"
+      case ":$PATH:" in
+        *":$BIN_DIR:"*) ;;
+        *) echo "  NOTE: $BIN_DIR is not on PATH. Add to your shell rc:"
+           echo "        export PATH=\"$BIN_DIR:\$PATH\"" ;;
+      esac
+      ;;
   esac
 fi
 

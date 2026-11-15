@@ -30,9 +30,31 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 IDENTITY = ROOT / "identity"
-SRC_HOME = Path.home() / ".hermes"
+IS_WIN = os.name == "nt"
+
+
+def hermes_home_candidates() -> list[Path]:
+    """Where a Hermes home lives: ~/.hermes everywhere, %LOCALAPPDATA%\\hermes on
+    Windows (the installer there never writes to the home directory)."""
+    cands = [Path.home() / ".hermes"]
+    if IS_WIN:
+        local = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        cands.append(Path(local) / "hermes")
+    return cands
+
+
+def find_hermes_home() -> Path:
+    for cand in hermes_home_candidates():
+        if cand.is_dir():
+            return cand
+    return hermes_home_candidates()[0]
+
+
+SRC_HOME = find_hermes_home()
 DST_HOME = Path(os.environ.get("KTAI_HOME") or (Path.home() / ".ktai"))
-VENV_PY = ROOT / "venv" / "bin" / "python3"
+VENV_BIN = ROOT / "venv" / ("Scripts" if IS_WIN else "bin")
+VENV_PY = VENV_BIN / ("python.exe" if IS_WIN else "python3")
+KTAI_ENTRY = ROOT / "bin" / "ktai_entry.py"
 
 # Files the user chose to inherit: without these KTAI cannot run at all.
 INHERIT_FILES = ("config.yaml", ".env", "auth.json", "google_token.json", "google_client_secret.json")
@@ -105,15 +127,23 @@ def ensure_skin() -> None:
     cfg_path = DST_HOME / "config.yaml"
     if not cfg_path.is_file():
         return
-    launcher = ROOT / "venv" / "bin" / "ktai"
-    if not launcher.is_file():
-        print("    skip skin: venv/bin/ktai not built yet — run scripts/setup_venv.py, then re-run seeding")
-        return
+    if IS_WIN:
+        # venv/Scripts/ktai.cmd needs cmd.exe; run the entry point directly.
+        if not VENV_PY.is_file():
+            print("    skip skin: venv python not built yet — run scripts/setup_venv.py, then re-run seeding")
+            return
+        launcher_cmd = [str(VENV_PY), str(KTAI_ENTRY)]
+    else:
+        launcher = VENV_BIN / "ktai"
+        if not launcher.is_file():
+            print("    skip skin: venv/bin/ktai not built yet — run scripts/setup_venv.py, then re-run seeding")
+            return
+        launcher_cmd = [str(launcher)]
     env = {**os.environ, "KTAI_HOME": str(DST_HOME), "HERMES_HOME": str(DST_HOME)}
     env.pop("PYTHONPATH", None)
     try:
         out = subprocess.run(
-            [str(launcher), "config", "set", "display.skin", "ktai"],
+            launcher_cmd + ["config", "set", "display.skin", "ktai"],
             env=env, capture_output=True, text=True, check=True,
         )
         print(f"    {(out.stdout or '').strip().splitlines()[-1] if out.stdout.strip() else 'display.skin = ktai'}")

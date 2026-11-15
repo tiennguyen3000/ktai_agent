@@ -17,7 +17,10 @@ KTAI_VERSION = "1.0.0"
 ROOT = Path(__file__).resolve().parent.parent
 CORE = ROOT / "core"
 IDENTITY = ROOT / "identity"
-VENV_BIN = ROOT / "venv" / "bin"
+# Windows venvs are Scripts/ + Lib/site-packages; the console scripts carry .exe.
+IS_WIN = os.name == "nt"
+VENV_BIN = ROOT / "venv" / ("Scripts" if IS_WIN else "bin")
+VENV_PY = VENV_BIN / ("python.exe" if IS_WIN else "python3")
 
 
 def ktai_home() -> Path:
@@ -27,4 +30,4 @@ def ktai_home() -> Path:
 
 def core_entry() -> Path:
     """The core CLI entry the passthrough execs (KTAI's own venv copy)."""
-    return VENV_BIN / "hermes"
+    return VENV_BIN / ("hermes.exe" if IS_WIN else "hermes")

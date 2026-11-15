@@ -51,6 +51,26 @@ NEW_ROOT = str(CORE.resolve())
 PY_CANDIDATES = ("python3.13", "python3.12", "python3.11")
 MIN_PY, MAX_PY = (3, 11), (3, 14)
 
+# Windows never exposes versioned names (python3.13.exe) and lays the venv out as
+# Scripts/ + Lib/site-packages instead of bin/ + lib/python3.x/site-packages.
+IS_WIN = os.name == "nt"
+VENV_BIN = "Scripts" if IS_WIN else "bin"
+VENV_PY_NAME = "python.exe" if IS_WIN else "python3"
+
+
+def python_candidates() -> list[str]:
+    """Versioned names first, then the places a Windows per-user install lands."""
+    cands: list[str] = list(PY_CANDIDATES)
+    if IS_WIN:
+        local = Path(os.environ.get("LOCALAPPDATA") or (Path.home() / "AppData" / "Local"))
+        for minor in (13, 12, 11):
+            cands += [
+                str(Path.home() / f"Python3{minor}" / "python.exe"),
+                str(local / "Programs" / "Python" / f"Python3{minor}" / "python.exe"),
+                str(Path(f"C:/Python3{minor}") / "python.exe"),
+            ]
+    return cands
+
 
 def step(msg: str) -> None:
     print(f"== {msg}", flush=True)
@@ -74,7 +94,7 @@ def python_version(path: str) -> tuple[int, int] | None:
 
 def find_python() -> str | None:
     explicit = os.environ.get("KTAI_PYTHON", "").strip()
-    for cand in ([explicit] if explicit else []) + list(PY_CANDIDATES):
+    for cand in ([explicit] if explicit else []) + python_candidates():
         path = shutil.which(cand) or (cand if Path(cand).is_file() else None)
         if not path:
             continue
@@ -94,7 +114,8 @@ def clone_mode() -> None:
         shutil.rmtree(DST_VENV)
 
     step(f"cloning venv {SRC_VENV} -> {DST_VENV} (308 MB, preserves symlinks)")
-    run(["cp", "-a", str(SRC_VENV), str(DST_VENV)])
+    # shutil instead of `cp -a`: same semantics, and it exists on Windows.
+    shutil.copytree(SRC_VENV, DST_VENV, symlinks=True)
 
     step("repointing absolute paths (editable finder, shebangs, activate scripts)")
     rewritten, scanned = 0, 0
@@ -136,7 +157,7 @@ def fresh_mode(allow_uv: bool = True, extras: str = "all", with_dev: bool = Fals
 
     step(f"creating venv: {py} -m venv {DST_VENV}")
     run([py, "-m", "venv", str(DST_VENV)])
-    vpy = DST_VENV / "bin" / "python3"
+    vpy = DST_VENV / VENV_BIN / VENV_PY_NAME
 
     extra_names = [e.strip() for e in extras.split(",") if e.strip()]
     if with_dev and "dev" not in extra_names:
@@ -175,15 +196,20 @@ def fresh_mode(allow_uv: bool = True, extras: str = "all", with_dev: bool = Fals
 
 
 def finalize() -> int:
-    site = next(DST_VENV.glob("lib/python3*/site-packages"))
+    if IS_WIN:
+        site = DST_VENV / "Lib" / "site-packages"
+    else:
+        site = next(DST_VENV.glob("lib/python3*/site-packages"))
     for junk in list(site.glob("__editable__*")):
         junk.unlink()
     (site / "ktai_core.pth").write_text(f"{NEW_ROOT}\n{KTAI_ROOT}\n", encoding="utf-8")
     step(f"editable mapping written: {site / 'ktai_core.pth'}")
 
     # Console scripts: keep the passthrough faithful (argv[0] still reads 'ktai'
-    # because the launcher execs with that name).
-    binp = DST_VENV / "bin"
+    # because the launcher execs with that name). Windows gets a .cmd because a
+    # POSIX sh script is not executable there; the sh script is still written so a
+    # venv copied to a Unix host keeps working.
+    binp = DST_VENV / VENV_BIN
     ktai_script = binp / "ktai"
     ktai_script.write_text(
         f"""#!/bin/sh
@@ -196,10 +222,26 @@ exec "{binp}/python3" "{KTAI_ROOT}/bin/ktai_entry.py" "$@"
 """, encoding="utf-8")
     ktai_script.chmod(0o755)
 
+    if IS_WIN:
+        ktai_cmd = binp / "ktai.cmd"
+        # .cmd must be CRLF; newline="\r\n" translates the joins below.
+        cmd_lines = [
+            "@echo off",
+            "setlocal",
+            'if "%KTAI_HOME%"=="" set "KTAI_HOME=%USERPROFILE%\\.ktai"',
+            'set "HERMES_HOME=%KTAI_HOME%"',
+            'set "PYTHONPATH="',
+            'set "PYTHONHOME="',
+            f'"{binp / "python.exe"}" "{KTAI_ROOT / "bin" / "ktai_entry.py"}" %*',
+            "exit /b %ERRORLEVEL%",
+        ]
+        ktai_cmd.write_text("\n".join(cmd_lines) + "\n", encoding="utf-8", newline="\r\n")
+        step(f"console script written: {ktai_cmd}")
+
     # Verification: imports must resolve inside the KTAI core, not the Hermes one.
     step("verifying import resolution")
     probe = subprocess.run(
-        [str(binp / "python3"), "-c",
+        [str(binp / VENV_PY_NAME), "-c",
          "import cli, ktai_branding, hermes_constants, agent.prompt_builder as p, tools;"
          "print('cli      ->', cli.__file__);"
          "print('branding ->', ktai_branding.__file__);"

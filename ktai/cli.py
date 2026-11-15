@@ -17,7 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import CORE, IDENTITY, KTAI_NAME, KTAI_VERSION, ROOT, core_entry, ktai_home
+from . import CORE, IDENTITY, KTAI_NAME, KTAI_VERSION, ROOT, VENV_PY, core_entry, ktai_home
 from . import brain
 
 
@@ -87,7 +87,7 @@ def _selfcheck() -> int:
     checks.append(("roles (6 agents)", len(brain.list_roles()) == 6,
                    f"{len(brain.list_roles())} found in {brain.agents_dir()}"))
     checks.append(("core source", (CORE / "hermes_cli").is_dir(), str(CORE)))
-    checks.append(("venv", (ROOT / "venv/bin/python3").is_file(), str(ROOT / "venv")))
+    checks.append(("venv", VENV_PY.is_file(), str(ROOT / "venv")))
     checks.append(("core entry", core_entry().is_file(), str(core_entry())))
 
     def _skin_ok() -> tuple[bool, str]:
@@ -157,6 +157,11 @@ def passthrough(argv: list[str]) -> int:
     """Exec the core CLI with argv[0]='ktai' — full fidelity, same process image."""
     entry = core_entry()
     if entry.is_file():
+        if os.name == "nt":
+            # os.execv on Windows joins argv with spaces and no quoting, so a prompt
+            # like `ktai chat -q "hai tu"` reaches the core as five arguments.
+            # Spawn a child with a properly built command line instead.
+            return subprocess.run([str(entry), *argv], check=False).returncode
         os.execv(str(entry), ["ktai", *argv])  # replaces this process
     # Fallback: no venv entry (e.g. source tree without setup_venv.py run).
     sys.path.insert(0, str(CORE))

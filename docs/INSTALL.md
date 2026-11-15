@@ -18,6 +18,41 @@ Vì vậy `git clone` nhánh `main` **không đủ để chạy** — phải l�
 - ~1,5 GB dung lượng trống (core 410 MB + venv 311 MB + deps).
 - Quyền đọc repo private: HTTPS + token (fine-grained token cần **Contents: Read**), hoặc SSH key.
 
+## Windows (git-bash) — đã kiểm chứng
+
+Installer vẫn là bash (chạy trong git-bash), nhưng layout venv và launcher khác POSIX nên
+các script đã được làm cross-platform:
+
+- `scripts/setup_venv.py` dùng `venv\Scripts\python.exe` + `venv\Lib\site-packages` và sinh
+  `venv\Scripts\ktai.cmd` (bản `bin/ktai` sh vẫn được ghi để venv copy sang Unix vẫn chạy).
+- `scripts/seed_home.py` tìm home Hermes ở `~/.hermes` **hoặc** `%LOCALAPPDATA%\hermes`
+  (installer Hermes trên Windows không bao giờ ghi vào thư mục home).
+- `ktai/__init__.py` + `ktai/cli.py`: `core_entry()` trỏ `venv\Scripts\hermes.exe`, selfcheck
+  kiểm `venv\Scripts\python.exe`, và passthrough **không** dùng `os.execv` trên Windows
+  (`os.execv` ghép argv bằng dấu cách, không quote → `ktai chat -q "hai từ"` bị chẻ thành 5 tham số).
+- `bin/ktai.cmd` + `~/bin/ktai` + `~/bin/ktai.cmd`: lệnh `ktai` chạy được trong PowerShell,
+  cmd và git-bash (`~/bin` đã nằm trong PATH).
+
+Cài trên Windows:
+
+```bash
+# Python 3.13 per-user, không cần admin (repo không hỗ trợ 3.14: pydantic-core chưa có cp314 wheel)
+curl -sL -o py313.exe https://www.python.org/ftp/python/3.13.13/python-3.13.13-amd64.exe
+./py313.exe /quiet InstallAllUsers=0 TargetDir='C:\Users\<user>\Python313' \
+    PrependPath=0 Include_launcher=0 Include_test=0 Include_doc=0 Shortcuts=0
+
+git clone https://github.com/tiennguyen3000/ktai_agent.git ~/KTAI
+cd ~/KTAI
+'C:/Users/<user>/Python313/python.exe' scripts/setup_venv.py --mode fresh   # ~5 phút, tải deps
+# KTAI_HOME phải là đường dẫn native (C:/... ), KHÔNG phải /c/... của MSYS:
+KTAI_HOME='C:\Users\<user>\.ktai' HERMES_HOME='C:\Users\<user>\.ktai' \
+    'C:/Users/<user>/Python313/python.exe' scripts/seed_home.py
+```
+
+Sau đó `ktai identity` / `ktai selfcheck` trong PowerShell. `scripts/verify.sh` viết cho POSIX
+(`.so`, `venv/bin`) — trên Windows dùng `ktai selfcheck` (10 check) thay thế.
+
+
 ## Cài một lệnh
 
 ```bash
